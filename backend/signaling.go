@@ -127,6 +127,14 @@ func (c *Client) readPump(room *Room) {
 	defer func() {
 		room.lock.Lock()
 		delete(room.clients, c)
+		// Broadcast leave message to all remaining clients
+		leaveMsg := mustMarshal(map[string]interface{}{
+			"type": "leave",
+			"id":   c.id,
+		})
+		for client := range room.clients {
+			client.send <- leaveMsg
+		}
 		room.lock.Unlock()
 		c.conn.Close()
 	}()

@@ -66,7 +66,10 @@ export class MeetingRTC {
   }
 
   close() {
-    if (this.ws) this.ws.close();
+    if (this.ws) {
+      this.sendSignal({ type: 'leave', id: this.myId });
+      this.ws.close();
+    }
     Object.values(this.peers).forEach(pc => pc.close());
     this.peers = {};
     this.dataChannels = {};
@@ -113,6 +116,8 @@ export class MeetingRTC {
           this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
         }
         this.options.onPeerJoin?.(peerId, msg.name);
+      } else if (msg.type === 'leave') {
+        this.options.onPeerLeave?.(msg.id);
       } else if (msg.type === 'offer') {
         this.handleOffer(msg);
       } else if (msg.type === 'answer') {

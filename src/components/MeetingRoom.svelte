@@ -9,6 +9,9 @@
   import IconMessageOff from '~icons/tabler/message-off';
   import IconLogout from '~icons/tabler/logout';
   import IconCopy from '~icons/tabler/copy';
+  import IconScreenShare from '~icons/tabler/screen-share';
+  import IconScreenShareOff from '~icons/tabler/screen-share-off';
+  import IconX from '~icons/tabler/x';
   export let meetingId: string;
   let joined = false;
   let displayName = '';
@@ -24,8 +27,13 @@
   let chatMessages: { sender: string; text: string; time: string }[] = [];
   let chatArea: HTMLDivElement | null = null;
   let rtc: MeetingRTC | null = null;
-  let showChat = false; // chat closed by default
+  let showChat = false;
   let copied = false;
+  let isScreenSharing = false;
+  let originalVideoTrack: MediaStreamTrack | null = null;
+  let focusedTile: { type: 'local' | 'remote', peerId?: string } | null = null;
+  let speakingPeers = new Set<string>();
+  let localSpeaking = false;
 
   // Svelte action to set srcObject for remote video
   function setSrcObject(node: HTMLVideoElement, stream: MediaStream) {
@@ -45,6 +53,66 @@
     navigator.clipboard.writeText(window.location.href);
     copied = true;
     setTimeout(() => copied = false, 1500);
+  }
+
+  async function startScreenShare() {
+    if (!rtc || !localStream) return;
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const screenTrack = screenStream.getVideoTracks()[0];
+      // Save original camera track
+      if (!originalVideoTrack) {
+        originalVideoTrack = localStream.getVideoTracks()[0];
+      }
+      // Replace video track in local stream
+      if (localStream.getVideoTracks().length > 0) {
+        localStream.removeTrack(localStream.getVideoTracks()[0]);
+      }
+      localStream.addTrack(screenTrack);
+      // Replace video track in all peer connections
+      if (rtc['peers']) {
+        Object.values(rtc['peers']).forEach((pc: RTCPeerConnection) => {
+          const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) sender.replaceTrack(screenTrack);
+        });
+      }
+      isScreenSharing = true;
+      // Update local video preview
+      tick().then(() => {
+        if (localVideo && localStream) {
+          localVideo.srcObject = localStream!;
+          localVideo.play();
+        }
+      });
+      // When screen sharing ends, revert to camera
+      screenTrack.onended = stopScreenShare;
+    } catch (err) {
+      // User cancelled or error
+    }
+  }
+
+  function stopScreenShare() {
+    if (!rtc || !originalVideoTrack || !localStream) return;
+    // Remove screen track
+    if (localStream.getVideoTracks().length > 0) {
+      localStream.getVideoTracks().forEach(track => localStream.removeTrack(track));
+    }
+    localStream.addTrack(originalVideoTrack);
+    // Replace video track in all peer connections
+    if (rtc['peers']) {
+      Object.values(rtc['peers']).forEach((pc: RTCPeerConnection) => {
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) sender.replaceTrack(originalVideoTrack!);
+      });
+    }
+    isScreenSharing = false;
+    originalVideoTrack = null;
+    tick().then(() => {
+      if (localVideo && localStream) {
+        localVideo.srcObject = localStream!;
+        localVideo.play();
+      }
+    });
   }
 
   function handleJoin(e: Event) {
@@ -152,6 +220,51 @@
     { name: displayName, isLocal: true, videoOn: videoEnabled },
     ...remoteStreams.map(r => ({ name: r.name, isLocal: false, videoOn: r.videoOn !== false }))
   ];
+
+  // Audio activity detection for local stream
+  function monitorLocalAudio() {
+    if (!localStream) return;
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    const micSource = audioCtx.createMediaStreamSource(localStream);
+    micSource.connect(analyser);
+    analyser.fftSize = 512;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function check() {
+      analyser.getByteFrequencyData(dataArray);
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      localSpeaking = avg > 20;
+      requestAnimationFrame(check);
+    }
+    check();
+  }
+
+  // Audio activity detection for remote streams
+  function monitorRemoteAudio(peerId: string, stream: MediaStream) {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    const remoteSource = audioCtx.createMediaStreamSource(stream);
+    remoteSource.connect(analyser);
+    analyser.fftSize = 512;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function check() {
+      analyser.getByteFrequencyData(dataArray);
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      if (avg > 20) {
+        speakingPeers.add(peerId);
+      } else {
+        speakingPeers.delete(peerId);
+      }
+      requestAnimationFrame(check);
+    }
+    check();
+  }
+
+  // Start monitoring audio when streams are available
+  $: if (joined && localStream) monitorLocalAudio();
+  $: if (joined && remoteStreams.length) {
+    remoteStreams.forEach(r => monitorRemoteAudio(r.peerId, r.stream));
+  }
 </script>
 
 {#if !joined}
@@ -201,32 +314,75 @@
       <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
         <div class="flex-1 grid gap-4 w-full h-full"
           style="grid-template-columns: repeat(auto-fit, minmax(min(400px,100%), 1fr)); grid-auto-rows: 0;">
-          <!-- Local video tile -->
-          <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
-            {#if videoEnabled && localStream}
-              <video bind:this={localVideo} autoplay playsinline muted class="w-full h-full object-cover rounded-2xl transition-all duration-300" />
-            {:else}
-              <div class="flex flex-col items-center justify-center w-full h-full">
-                <div class="w-20 h-20 rounded-full bg-indigo-400 flex items-center justify-center text-white text-3xl font-bold mb-2">{getInitials(displayName)}</div>
-                <span class="text-white text-sm">Camera Off</span>
-              </div>
-            {/if}
-            <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{displayName} (You)</span>
-          </div>
-          <!-- Remote video tiles -->
-          {#each remoteStreams as remote}
-            <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
-              {#if remote.videoOn !== false}
-                <video autoplay playsinline class="w-full h-full object-cover rounded-2xl transition-all duration-300" use:setSrcObject={remote.stream} />
+          {#if focusedTile === null}
+            <!-- Local video tile -->
+            <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300"
+              on:click={() => focusedTile = { type: 'local' }}>
+              {#if localSpeaking}
+                <div class="absolute inset-0 z-10 pointer-events-none rounded-2xl border-4 border-indigo-400 animate-glow-outline"></div>
+              {/if}
+              {#if videoEnabled && localStream}
+                <video bind:this={localVideo} autoplay playsinline muted class="w-full h-full object-cover rounded-2xl transition-all duration-300" />
               {:else}
                 <div class="flex flex-col items-center justify-center w-full h-full">
-                  <div class="w-20 h-20 rounded-full bg-indigo-300 flex items-center justify-center text-white text-3xl font-bold mb-2">{getInitials(remote.name)}</div>
+                  <div class="w-20 h-20 rounded-full bg-indigo-400 flex items-center justify-center text-white text-3xl font-bold mb-2">{getInitials(displayName)}</div>
                   <span class="text-white text-sm">Camera Off</span>
                 </div>
               {/if}
-              <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{remote.name}</span>
+              <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{displayName} (You)</span>
             </div>
-          {/each}
+            <!-- Remote video tiles -->
+            {#each remoteStreams as remote}
+              <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300"
+                on:click={() => focusedTile = { type: 'remote', peerId: remote.peerId }}>
+                {#if speakingPeers.has(remote.peerId)}
+                  <div class="absolute inset-0 z-10 pointer-events-none rounded-2xl border-4 border-indigo-400 animate-glow-outline"></div>
+                {/if}
+                {#if remote.videoOn !== false}
+                  <video autoplay playsinline class="w-full h-full object-cover rounded-2xl transition-all duration-300" use:setSrcObject={remote.stream} />
+                {:else}
+                  <div class="flex flex-col items-center justify-center w-full h-full">
+                    <div class="w-20 h-20 rounded-full bg-indigo-300 flex items-center justify-center text-white text-3xl font-bold mb-2">{getInitials(remote.name)}</div>
+                    <span class="text-white text-sm">Camera Off</span>
+                  </div>
+                {/if}
+                <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{remote.name}</span>
+              </div>
+            {/each}
+          {:else}
+            <!-- Focused tile -->
+            {#if focusedTile.type === 'local'}
+              <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
+                <button class="absolute top-2 right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="22" /></button>
+                {#if videoEnabled && localStream}
+                  <video bind:this={localVideo} autoplay playsinline muted class="w-full h-full object-cover rounded-2xl transition-all duration-300" />
+                {:else}
+                  <div class="flex flex-col items-center justify-center w-full h-full">
+                    <div class="w-20 h-20 rounded-full bg-indigo-400 flex items-center justify-center text-white text-3xl font-bold mb-2">{getInitials(displayName)}</div>
+                    <span class="text-white text-sm">Camera Off</span>
+                  </div>
+                {/if}
+                <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{displayName} (You)</span>
+              </div>
+            {:else}
+              {#each remoteStreams as remote}
+                {#if remote.peerId === focusedTile.peerId}
+                  <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
+                    <button class="absolute top-2 right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="22" /></button>
+                    {#if remote.videoOn !== false}
+                      <video autoplay playsinline class="w-full h-full object-cover rounded-2xl transition-all duration-300" use:setSrcObject={remote.stream} />
+                    {:else}
+                      <div class="flex flex-col items-center justify-center w-full h-full">
+                        <div class="w-20 h-20 rounded-full bg-indigo-300 flex items-center justify-center text-white text-3xl font-bold mb-2">{getInitials(remote.name)}</div>
+                        <span class="text-white text-sm">Camera Off</span>
+                      </div>
+                    {/if}
+                    <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{remote.name}</span>
+                  </div>
+                {/if}
+              {/each}
+            {/if}
+          {/if}
         </div>
         <!-- Controls bar: absolutely positioned at bottom center of grid container -->
         <div class="absolute left-1/2 bottom-6 transform -translate-x-1/2 z-40 flex gap-4 bg-white/90 rounded-full shadow-lg px-6 py-3 items-center">
@@ -242,6 +398,13 @@
               <IconVideo size="22" />
             {:else}
               <IconVideoOff size="22" />
+            {/if}
+          </button>
+          <button class="btn btn-secondary flex items-center gap-2" type="button" on:click={isScreenSharing ? stopScreenShare : startScreenShare} aria-label={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}>
+            {#if isScreenSharing}
+              <IconScreenShareOff size="22" />
+            {:else}
+              <IconScreenShare size="22" />
             {/if}
           </button>
           <button class="btn btn-secondary flex items-center gap-2" type="button" on:click={toggleChat} aria-label={showChat ? 'Hide Chat' : 'Show Chat'}>
@@ -301,5 +464,21 @@
   }
   .btn-danger {
     @apply bg-red-500 text-white hover:bg-red-600;
+  }
+  .animate-glow {
+    outline: 4px solid #818cf8;
+    outline-offset: 0px;
+    animation: glow-outline-pulse 1s infinite alternate;
+  }
+  @keyframes glow-outline-pulse {
+    0% { outline-width: 4px; outline-offset: 0px; }
+    100% { outline-width: 8px; outline-offset: 4px; }
+  }
+  .animate-glow-outline {
+    animation: glow-outline-pulse 1s infinite alternate;
+  }
+  @keyframes glow-outline-pulse {
+    0% { box-shadow: 0 0 0 0 #818cf8, 0 0 16px 4px #818cf8; }
+    100% { box-shadow: 0 0 0 8px #818cf8, 0 0 32px 8px #818cf8; }
   }
 </style> 

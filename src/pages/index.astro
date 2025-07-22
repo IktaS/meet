@@ -1,0 +1,53 @@
+---
+import MeetingForm from '../components/MeetingForm.svelte';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Schedule a Meeting with Imam Rafii</title>
+  </head>
+  <body class="bg-gray-50 min-h-screen flex items-center justify-center relative overflow-hidden">
+    <!-- Zen lines animation background -->
+    <div class="absolute inset-0 -z-10">
+      <svg class="w-full h-full" viewBox="0 0 1440 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path class="zen-line-1" d="M0 100 Q720 200 1440 100" stroke="#c7d2fe" stroke-width="2" fill="none"/>
+        <path class="zen-line-2" d="M0 250 Q720 350 1440 250" stroke="#a5b4fc" stroke-width="2" fill="none"/>
+        <path class="zen-line-3" d="M0 400 Q720 500 1440 400" stroke="#818cf8" stroke-width="2" fill="none"/>
+        <path class="zen-line-4" d="M0 550 Q720 650 1440 550" stroke="#6366f1" stroke-width="2" fill="none"/>
+        <path class="zen-line-5" d="M0 700 Q720 800 1440 700" stroke="#4f46e5" stroke-width="2" fill="none"/>
+        <path class="zen-line-6" d="M0 850 Q720 950 1440 850" stroke="#818cf8" stroke-width="2" fill="none"/>
+        <path class="zen-line-7" d="M0 1000 Q720 1100 1440 1000" stroke="#a5b4fc" stroke-width="2" fill="none"/>
+        <path class="zen-line-8" d="M0 1150 Q720 1250 1440 1150" stroke="#c7d2fe" stroke-width="2" fill="none"/>
+      </svg>
+      <style>
+        .zen-line-1 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-1 8s linear infinite alternate; }
+        .zen-line-2 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-2 10s linear infinite alternate; }
+        .zen-line-3 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-3 12s linear infinite alternate; }
+        .zen-line-4 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-4 14s linear infinite alternate; }
+        .zen-line-5 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-5 16s linear infinite alternate; }
+        .zen-line-6 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-6 18s linear infinite alternate; }
+        .zen-line-7 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-7 20s linear infinite alternate; }
+        .zen-line-8 { stroke-dasharray: 3000; stroke-dashoffset: 0; animation: zen-move-8 22s linear infinite alternate; }
+        @keyframes zen-move-1 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 200; } }
+        @keyframes zen-move-2 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -200; } }
+        @keyframes zen-move-3 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 400; } }
+        @keyframes zen-move-4 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -400; } }
+        @keyframes zen-move-5 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 600; } }
+        @keyframes zen-move-6 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -600; } }
+        @keyframes zen-move-7 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 800; } }
+        @keyframes zen-move-8 { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -800; } }
+      </style>
+    </div>
+    <main class="w-full max-w-md p-8 bg-white rounded-lg shadow-md relative z-10">
+      <h1 class="text-2xl font-bold mb-2 text-center">Schedule a Meeting with Imam Rafii</h1>
+      <div class="flex justify-center mb-6">
+        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-300 to-indigo-500 flex items-center justify-center shadow-lg">
+          <span class="text-3xl text-white font-bold select-none">IR</span>
+        </div>
+      </div>
+      <MeetingForm client:load />
+    </main>
+  </body>
+</html> 

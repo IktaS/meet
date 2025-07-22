@@ -1,0 +1,18 @@
+---
+export const prerender = false;
+import MeetingRoom from '../../components/MeetingRoom.svelte';
+const { id } = Astro.params;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meeting Room</title>
+  </head>
+  <body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <main class="w-full max-w-3xl p-4 md:p-8 bg-white rounded-lg shadow-md">
+      <MeetingRoom client:load meetingId={id} />
+    </main>
+  </body>
+</html> 

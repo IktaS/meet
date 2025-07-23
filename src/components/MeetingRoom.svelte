@@ -81,7 +81,7 @@
       tick().then(() => {
         if (localVideo && localStream) {
           localVideo.srcObject = localStream!;
-          localVideo.play();
+          localVideo.play().catch(() => {});
         }
       });
       // When screen sharing ends, revert to camera
@@ -92,12 +92,16 @@
   }
 
   function stopScreenShare() {
-    if (!rtc || !originalVideoTrack || !localStream) return;
+    if (!rtc || !originalVideoTrack) return;
+    if (!localStream) return;
     // Remove screen track
-    if (localStream.getVideoTracks().length > 0) {
-      localStream.getVideoTracks().forEach(track => localStream.removeTrack(track));
+    const videoTracks = localStream.getVideoTracks();
+    if (videoTracks.length > 0) {
+      videoTracks.forEach(track => localStream!.removeTrack(track));
     }
-    localStream.addTrack(originalVideoTrack);
+    if (localStream) {
+      localStream.addTrack(originalVideoTrack);
+    }
     // Replace video track in all peer connections
     if (rtc['peers']) {
       Object.values(rtc['peers']).forEach((pc: RTCPeerConnection) => {
@@ -109,8 +113,8 @@
     originalVideoTrack = null;
     tick().then(() => {
       if (localVideo && localStream) {
-        localVideo.srcObject = localStream!;
-        localVideo.play();
+        localVideo.srcObject = localStream;
+        localVideo.play().catch(() => {});
       }
     });
   }
@@ -149,7 +153,7 @@
       tick().then(() => {
         if (localVideo && localStream) {
           localVideo.srcObject = localStream;
-          localVideo.play();
+          localVideo.play().catch(() => {});
         }
       });
     }).catch(err => {
@@ -212,8 +216,10 @@
 
   // Ensure local video preview always updates
   $: if (joined && localVideo && localStream) {
-    localVideo.srcObject = localStream;
-    localVideo.play();
+    if (localStream) {
+      localVideo.srcObject = localStream;
+      localVideo.play().catch(() => {});
+    }
   }
 
   $: participants = [
@@ -224,7 +230,8 @@
   // Audio activity detection for local stream
   function monitorLocalAudio() {
     if (!localStream) return;
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioCtx();
     const analyser = audioCtx.createAnalyser();
     const micSource = audioCtx.createMediaStreamSource(localStream);
     micSource.connect(analyser);
@@ -241,7 +248,8 @@
 
   // Audio activity detection for remote streams
   function monitorRemoteAudio(peerId: string, stream: MediaStream) {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioCtx();
     const analyser = audioCtx.createAnalyser();
     const remoteSource = audioCtx.createMediaStreamSource(stream);
     remoteSource.connect(analyser);
@@ -286,8 +294,27 @@
   </div>
 {:else}
   <div class="fixed inset-0 min-h-screen bg-gradient-to-br from-indigo-50 to-white flex flex-col">
-    <!-- Header -->
-    <header class="flex items-center justify-between px-4 py-3 bg-white/80 shadow-sm sticky top-0 z-30">
+    <!-- Mobile Header -->
+    <header class="flex md:hidden items-center justify-between px-2 py-2 bg-white/90 shadow-sm sticky top-0 z-30">
+      <span class="font-mono text-xs text-gray-500 bg-gray-100 rounded px-2 py-1">ID: {meetingId.slice(0, 4)}...</span>
+      <button class="btn btn-secondary flex items-center gap-1 px-2 py-1 text-xs" on:click={copyMeetingLink} aria-label="Copy meeting link">
+        <IconCopy size="18" />
+        {#if copied}
+          <span>Copied!</span>
+        {:else}
+          <span>Copy</span>
+        {/if}
+      </button>
+      <button class="btn btn-secondary flex items-center gap-2 md:hidden" type="button" on:click={toggleChat} aria-label={showChat ? 'Hide Chat' : 'Show Chat'}>
+        {#if showChat}
+          <IconMessageOff size="22" />
+        {:else}
+          <IconMessage size="22" />
+        {/if}
+      </button>
+    </header>
+    <!-- Desktop Header -->
+    <header class="hidden md:flex items-center justify-between px-4 py-3 bg-white/80 shadow-sm sticky top-0 z-30">
       <div class="flex items-center gap-2">
         <span class="font-mono text-xs text-gray-500 bg-gray-100 rounded px-2 py-1">Meeting ID: {meetingId.slice(0, 8)}...</span>
         <button class="ml-2 btn btn-secondary flex items-center gap-1 px-2 py-1 text-xs" on:click={copyMeetingLink} aria-label="Copy meeting link">
@@ -309,11 +336,11 @@
       </div>
     </header>
     <!-- Main content -->
-    <div class="flex-1 flex flex-row gap-0 md:gap-6 max-w-7xl w-full mx-auto px-0 md:px-8 py-4 h-full">
+    <div class="flex-1 flex flex-col md:flex-row gap-0 md:gap-6 max-w-7xl w-full mx-auto px-0 md:px-8 py-2 md:py-4 h-full">
       <!-- Video grid -->
       <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
-        <div class="flex-1 grid gap-4 w-full h-full"
-          style="grid-template-columns: repeat(auto-fit, minmax(min(400px,100%), 1fr)); grid-auto-rows: 0;">
+        <div class="flex-1 grid gap-2 md:gap-4 w-full h-full overflow-x-auto md:overflow-visible pb-28 md:pb-0"
+          style="grid-template-columns: repeat(auto-fit, minmax(min(320px,100%), 1fr)); grid-auto-rows: 0;">
           {#if focusedTile === null}
             <!-- Local video tile -->
             <div class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300"
@@ -385,7 +412,7 @@
           {/if}
         </div>
         <!-- Controls bar: absolutely positioned at bottom center of grid container -->
-        <div class="absolute left-1/2 bottom-6 transform -translate-x-1/2 z-40 flex gap-4 bg-white/90 rounded-full shadow-lg px-6 py-3 items-center">
+        <div class="fixed md:absolute left-0 right-0 bottom-0 md:left-1/2 md:bottom-6 md:-translate-x-1/2 z-40 flex flex-row md:flex-row gap-2 md:gap-4 bg-white/95 md:bg-white/90 rounded-none md:rounded-full shadow-t md:shadow-lg px-2 md:px-6 py-2 md:py-3 items-center justify-center w-full md:w-auto">
           <button class="btn btn-secondary flex items-center gap-2" type="button" on:click={toggleAudio} aria-label={audioEnabled ? 'Mute' : 'Unmute'}>
             {#if audioEnabled}
               <IconMic size="22" />
@@ -407,7 +434,7 @@
               <IconScreenShare size="22" />
             {/if}
           </button>
-          <button class="btn btn-secondary flex items-center gap-2" type="button" on:click={toggleChat} aria-label={showChat ? 'Hide Chat' : 'Show Chat'}>
+          <button class="btn btn-secondary flex items-center gap-2 hidden md:flex" type="button" on:click={toggleChat} aria-label={showChat ? 'Hide Chat' : 'Show Chat'}>
             {#if showChat}
               <IconMessageOff size="22" />
             {:else}
@@ -421,8 +448,8 @@
       </div>
       <!-- Chat sidebar (conditionally rendered) -->
       {#if showChat}
-        <aside class="shrink-0 w-[350px] max-w-full flex flex-col bg-white/80 rounded-2xl shadow-lg ml-0 md:ml-6 mt-6 md:mt-0">
-          <div class="flex-1 rounded-2xl p-4 mb-2 overflow-y-auto min-h-[200px]" bind:this={chatArea} tabindex="0">
+        <aside class="fixed md:static bottom-0 left-0 right-0 md:shrink-0 w-full md:w-[350px] max-w-full flex flex-col bg-white/95 md:bg-white/80 rounded-none md:rounded-2xl shadow-t md:shadow-lg ml-0 md:ml-6 mt-0 md:mt-0 z-50 h-[40vh] md:h-auto" style="max-height:60vh;">
+          <div class="flex-1 rounded-none md:rounded-2xl p-2 md:p-4 mb-2 overflow-y-auto min-h-[120px] md:min-h-[200px]" bind:this={chatArea} tabindex="0">
             {#if chatMessages.length === 0}
               <div class="text-gray-400 text-center">Chat will appear here</div>
             {:else}
@@ -439,7 +466,7 @@
               </ul>
             {/if}
           </div>
-          <form class="flex gap-2 p-4 pt-0" on:submit={sendMessage} autocomplete="off">
+          <form class="flex gap-2 p-2 md:p-4 pt-0" on:submit={sendMessage} autocomplete="off">
             <input class="input input-bordered flex-1" placeholder="Type a message..." bind:value={chatInput} />
             <button class="btn btn-primary" type="submit">Send</button>
           </form>
@@ -455,6 +482,9 @@
   }
   .btn {
     @apply bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1rem;
   }
   .btn-primary {
     @apply bg-blue-600;
@@ -480,5 +510,18 @@
   @keyframes glow-outline-pulse {
     0% { box-shadow: 0 0 0 0 #818cf8, 0 0 16px 4px #818cf8; }
     100% { box-shadow: 0 0 0 8px #818cf8, 0 0 32px 8px #818cf8; }
+  }
+  /* Mobile tweaks */
+  @media (max-width: 768px) {
+    .btn, .btn-primary, .btn-secondary, .btn-danger {
+      font-size: 1.1rem;
+      padding: 0.75rem 1.25rem;
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .input {
+      font-size: 1.1rem;
+      padding: 0.75rem 1.25rem;
+    }
   }
 </style> 

@@ -1,16 +1,9 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { MeetingRTC } from '../lib/webrtc';
-  import IconMic from '~icons/tabler/microphone';
-  import IconMicOff from '~icons/tabler/microphone-off';
-  import IconVideo from '~icons/tabler/video';
-  import IconVideoOff from '~icons/tabler/video-off';
   import IconMessage from '~icons/tabler/message';
   import IconMessageOff from '~icons/tabler/message-off';
-  import IconLogout from '~icons/tabler/logout';
   import IconCopy from '~icons/tabler/copy';
-  import IconScreenShare from '~icons/tabler/screen-share';
-  import IconScreenShareOff from '~icons/tabler/screen-share-off';
   import IconX from '~icons/tabler/x';
   import MeetingControls from './MeetingControls.svelte';
   import VideoTile from './VideoTile.svelte';
@@ -276,20 +269,21 @@
 </script>
 
 {#if !joined}
-  <div class="fixed inset-0 flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-50 to-white">
-    <form class="w-full max-w-sm bg-gray-100 rounded-lg p-6 flex flex-col gap-4 items-center shadow-xl" on:submit|preventDefault={handleJoin}>
-      <h2 class="text-xl font-bold mb-2 text-center">Join Meeting</h2>
+  <div class="fixed inset-0 flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-100 to-white">
+    <form class="w-full max-w-md bg-white/90 rounded-2xl p-8 flex flex-col gap-6 items-center shadow-2xl border border-indigo-100 backdrop-blur-md" on:submit|preventDefault={handleJoin}>
+      <h2 class="text-2xl font-extrabold mb-2 text-center text-indigo-700 tracking-tight">Join Meeting</h2>
       <input
-        class="input input-bordered w-full"
+        class="w-full border border-indigo-200 rounded-lg px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition placeholder-gray-400 bg-indigo-50/60"
         placeholder="Your name"
         bind:value={displayName}
         required
         aria-label="Display name"
+        autocomplete="name"
       />
       {#if joinError}
-        <div class="text-red-500 text-sm">{joinError}</div>
+        <div class="text-red-500 text-sm w-full text-center">{joinError}</div>
       {/if}
-      <button class="btn btn-primary w-full" type="submit">Join Meeting</button>
+      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg shadow transition text-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2" type="submit">Join Meeting</button>
     </form>
   </div>
 {:else}
@@ -374,7 +368,6 @@
                 stream={localStream}
                 isSpeaking={localSpeaking}
                 initials={getInitials(displayName)}
-                focused={true}
               >
                 <button class="absolute top-2 right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="22" /></button>
               </VideoTile>
@@ -388,7 +381,6 @@
                     stream={remote.stream}
                     isSpeaking={speakingPeers.has(remote.peerId)}
                     initials={getInitials(remote.name)}
-                    focused={true}
                   >
                     <button class="absolute top-2 right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="22" /></button>
                   </VideoTile>
@@ -413,7 +405,7 @@
       <!-- Chat sidebar (conditionally rendered) -->
       {#if showChat}
         <aside class="fixed md:static bottom-0 left-0 right-0 md:shrink-0 w-full md:w-[350px] max-w-full flex flex-col bg-white/95 md:bg-white/80 rounded-none md:rounded-2xl shadow-t md:shadow-lg ml-0 md:ml-6 mt-0 md:mt-0 z-50 h-[40vh] md:h-auto" style="max-height:60vh;">
-          <div class="flex-1 rounded-none md:rounded-2xl p-2 md:p-4 mb-2 overflow-y-auto min-h-[120px] md:min-h-[200px]" bind:this={chatArea} tabindex="0">
+          <div class="flex-1 rounded-none md:rounded-2xl p-2 md:p-4 mb-2 overflow-y-auto min-h-[120px] md:min-h-[200px]" bind:this={chatArea}>
             {#if chatMessages.length === 0}
               <div class="text-gray-400 text-center">Chat will appear here</div>
             {:else}
@@ -441,51 +433,4 @@
 {/if}
 
 <style>
-  .input {
-    @apply border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition;
-  }
-  .btn {
-    @apply bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed;
-    min-width: 44px;
-    min-height: 44px;
-    font-size: 1rem;
-  }
-  .btn-primary {
-    @apply bg-blue-600;
-  }
-  .btn-secondary {
-    @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
-  }
-  .btn-danger {
-    @apply bg-red-500 text-white hover:bg-red-600;
-  }
-  .animate-glow {
-    outline: 4px solid #818cf8;
-    outline-offset: 0px;
-    animation: glow-outline-pulse 1s infinite alternate;
-  }
-  @keyframes glow-outline-pulse {
-    0% { outline-width: 4px; outline-offset: 0px; }
-    100% { outline-width: 8px; outline-offset: 4px; }
-  }
-  .animate-glow-outline {
-    animation: glow-outline-pulse 1s infinite alternate;
-  }
-  @keyframes glow-outline-pulse {
-    0% { box-shadow: 0 0 0 0 #818cf8, 0 0 16px 4px #818cf8; }
-    100% { box-shadow: 0 0 0 8px #818cf8, 0 0 32px 8px #818cf8; }
-  }
-  /* Mobile tweaks */
-  @media (max-width: 768px) {
-    .btn, .btn-primary, .btn-secondary, .btn-danger {
-      font-size: 1.1rem;
-      padding: 0.75rem 1.25rem;
-      min-width: 44px;
-      min-height: 44px;
-    }
-    .input {
-      font-size: 1.1rem;
-      padding: 0.75rem 1.25rem;
-    }
-  }
 </style> 

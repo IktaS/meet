@@ -83,42 +83,55 @@ export class MeetingRTC {
 
   // --- Internal methods ---
   private connectSignaling() {
-    this.ws = new WebSocket(import.meta.env.PUBLIC_BACKEND_URL.replace(/^http/, 'ws') + '/ws/signaling');
+    const wsBase =
+      import.meta.env.PUBLIC_BACKEND_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    console.log('[MeetingRTC] Connecting to signaling server...', wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
+    this.ws = new WebSocket(wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
     this.ws.onopen = () => {
+      console.log('[MeetingRTC] WebSocket open');
       this.sendSignal({ type: 'join', roomId: this.meetingId, name: this.displayName });
     };
     this.ws.onmessage = async (event) => {
+      console.log('[MeetingRTC] WebSocket message:', event.data);
       const msg = JSON.parse(event.data);
       if (msg.type === 'id') {
         this.myId = msg.id;
       } else if (msg.type === 'peers') {
+        // Only the new joiner initiates connections to existing peers
         for (const peer of msg.peers) {
           const peerId = peer.peerId;
-          this.peerNames[peerId] = peer.name;
+          const name = peer.name;
+          this.peerNames[peerId] = name;
           if (peerId !== this.myId) {
-            const pc = this.createPeerConnection(peerId, true);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            this.sendSignal({ type: 'offer', to: peerId, offer });
-            this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
+            console.log('[MeetingRTC] Creating offer for', peerId, 'name:', name);
+            try {
+              const pc = this.createPeerConnection(peerId, true);
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              this.sendSignal({ type: 'offer', to: peerId, offer });
+              this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
+              console.log('[MeetingRTC] Offer sent to', peerId);
+            } catch (err) {
+              console.error('[MeetingRTC] Error creating/sending offer for', peerId, err);
+            }
           }
         }
-      } else if (msg.type === 'peer-name') {
-        this.peerNames[msg.peerId] = msg.name;
       } else if (msg.type === 'new-peer') {
         const peerId = msg.peerId;
         this.peerNames[peerId] = msg.name;
         if (!this.peers[peerId]) {
-          const pc = this.createPeerConnection(peerId, true);
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          this.sendSignal({ type: 'offer', to: peerId, offer });
-          this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
+          console.log('[MeetingRTC] Creating peer connection for new-peer', peerId);
+          this.createPeerConnection(peerId, false);
         }
         this.options.onPeerJoin?.(peerId, msg.name);
+      } else if (msg.type === 'peer-name') {
+        console.log('[MeetingRTC] Received peer-name from', msg.from, 'name:', msg.name);
+        this.peerNames[msg.from] = msg.name;
       } else if (msg.type === 'leave') {
         this.options.onPeerLeave?.(msg.id);
       } else if (msg.type === 'offer') {
+        console.log('[MeetingRTC] About to handle offer:', msg);
         this.handleOffer(msg);
       } else if (msg.type === 'answer') {
         this.handleAnswer(msg);
@@ -129,7 +142,11 @@ export class MeetingRTC {
       }
     };
     this.ws.onclose = () => {
+      console.log('[MeetingRTC] WebSocket closed');
       this.ws = null;
+    };
+    this.ws.onerror = (err) => {
+      console.error('[MeetingRTC] WebSocket error:', err);
     };
   }
 
@@ -140,6 +157,7 @@ export class MeetingRTC {
   }
 
   private createPeerConnection(peerId: string, isInitiator: boolean) {
+    console.log('[MeetingRTC] createPeerConnection', peerId, isInitiator);
     const TURN_URLS = import.meta.env.PUBLIC_TURN_URLS?.split(',') || [];
     const TURN_USERNAME = import.meta.env.PUBLIC_TURN_USERNAME;
     const TURN_CREDENTIAL = import.meta.env.PUBLIC_TURN_CREDENTIAL;
@@ -168,6 +186,7 @@ export class MeetingRTC {
     };
     pc.ontrack = (event) => {
       let stream = event.streams[0];
+      console.log('[MeetingRTC] ontrack for peer', peerId, stream);
       if (stream) {
         this.options.onPeerVideo(peerId, stream, this.peerNames[peerId] || peerId);
       }
@@ -194,24 +213,45 @@ export class MeetingRTC {
   }
 
   private async handleOffer(msg: any) {
-    const pc = this.createPeerConnection(msg.from, false);
-    await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    this.sendSignal({ type: 'answer', to: msg.from, answer });
+    console.log('[MeetingRTC] handleOffer from', msg.from, msg.offer);
+    try {
+      const pc = this.createPeerConnection(msg.from, false);
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      this.sendSignal({ type: 'answer', to: msg.from, answer });
+      console.log('[MeetingRTC] Answer sent to', msg.from);
+    } catch (err) {
+      console.error('[MeetingRTC] Error handling offer from', msg.from, err);
+    }
   }
 
   private async handleAnswer(msg: any) {
-    const pc = this.peers[msg.from];
-    if (pc) {
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+    console.log('[MeetingRTC] handleAnswer from', msg.from, msg.answer);
+    try {
+      const pc = this.peers[msg.from];
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+        console.log('[MeetingRTC] Remote description set for answer from', msg.from);
+      } else {
+        console.warn('[MeetingRTC] No peer connection found for answer from', msg.from);
+      }
+    } catch (err) {
+      console.error('[MeetingRTC] Error handling answer from', msg.from, err);
     }
   }
 
   private async handleIce(msg: any) {
-    const pc = this.peers[msg.from];
-    if (pc && msg.candidate) {
-      await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+    try {
+      const pc = this.peers[msg.from];
+      if (pc && msg.candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        console.log('[MeetingRTC] ICE candidate added for', msg.from);
+      } else {
+        console.warn('[MeetingRTC] No peer connection or candidate for ICE from', msg.from);
+      }
+    } catch (err) {
+      console.error('[MeetingRTC] Error handling ICE from', msg.from, err);
     }
   }
 } 

@@ -17,7 +17,7 @@
   let localStream: MediaStream | null = null;
   let audioEnabled = true;
   let videoEnabled = true;
-  let remoteStreams: { peerId: string; stream: MediaStream; name: string; videoOn?: boolean }[] = [];
+  let remoteStreams: { peerId: string; stream: MediaStream | null; name: string; videoOn?: boolean }[] = [];
   let chatInput = '';
   let chatMessages: { sender: string; text: string; time: string }[] = [];
   let chatArea: HTMLDivElement | null = null;
@@ -128,6 +128,7 @@
       meetingId,
       displayName,
       onPeerVideo: (peerId, stream, name) => {
+        console.log('[MeetingRoom] onPeerVideo', peerId, name, stream);
         if (!remoteStreams.find(r => r.peerId === peerId)) {
           remoteStreams = [...remoteStreams, { peerId, stream, name, videoOn: true }];
         }
@@ -138,21 +139,26 @@
           if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
         });
       },
-      onPeerJoin: (peerId, name) => {},
       onPeerLeave: (peerId) => {
         remoteStreams = remoteStreams.filter(r => r.peerId !== peerId);
       }
     });
+    console.log('[MeetingRoom] Calling rtc.join()...');
     rtc.join().then(() => {
       localStream = rtc?.getLocalStream() || null;
+      console.log('[MeetingRoom] rtc.join() resolved, localStream:', localStream);
       tick().then(() => {
         if (localVideo && localStream) {
           localVideo.srcObject = localStream;
           localVideo.play().catch(() => {});
+          console.log('[MeetingRoom] localVideo element set with localStream:', localVideo, localStream);
+        } else {
+          console.log('[MeetingRoom] localVideo or localStream missing after join', localVideo, localStream);
         }
       });
     }).catch(err => {
       joinError = 'Could not access camera or microphone.';
+      console.error('[MeetingRoom] rtc.join() error:', err);
     });
   }
 
@@ -213,6 +219,7 @@
   $: if (joined && localVideo && localStream) {
     (localVideo as HTMLVideoElement).srcObject = localStream;
     (localVideo as HTMLVideoElement).play().catch(() => {});
+    console.log('[MeetingRoom] $: localVideo and localStream set', localVideo, localStream);
   }
 
   $: participants = [
@@ -264,7 +271,9 @@
   // Start monitoring audio when streams are available
   $: if (joined && localStream) monitorLocalAudio();
   $: if (joined && remoteStreams.length) {
-    remoteStreams.forEach(r => monitorRemoteAudio(r.peerId, r.stream));
+    remoteStreams.forEach(r => {
+      if (r.stream) monitorRemoteAudio(r.peerId, r.stream);
+    });
   }
 </script>
 

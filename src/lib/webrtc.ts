@@ -7,6 +7,7 @@ interface MeetingRTCOptions {
   onChatMessage: (msg: ChatMessage) => void;
   onPeerJoin?: (peerId: string, displayName: string) => void;
   onPeerLeave?: (peerId: string) => void;
+  onPeerMute?: (peerId: string, muted: boolean) => void;
 }
 
 export class MeetingRTC {
@@ -81,6 +82,10 @@ export class MeetingRTC {
     }
   }
 
+  public sendMuteSignal(muted: boolean) {
+    this.sendSignal({ type: 'mute', muted });
+  }
+
   // --- Internal methods ---
   private connectSignaling() {
     const wsBase =
@@ -139,6 +144,8 @@ export class MeetingRTC {
         this.handleAnswer(msg);
       } else if (msg.type === 'ice') {
         this.handleIce(msg);
+      } else if (msg.type === 'mute' && msg.from) {
+        this.options.onPeerMute?.(msg.from, msg.muted);
       } else if (msg.type === 'chat') {
         this.options.onChatMessage({ sender: msg.sender, text: msg.text, time: msg.time });
       }

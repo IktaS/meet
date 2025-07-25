@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconMicOff from '~icons/tabler/microphone-off';
   export let isLocal: boolean;
   export let name: string;
   export let videoOn: boolean;
@@ -6,6 +7,7 @@
   export let isSpeaking: boolean = false;
   export let initials: string;
   export let onClick: (() => void) | null = null;
+  export let audioOn: boolean = true;
   let videoEl: HTMLVideoElement | null = null;
   // Svelte action to set srcObject
   function setSrcObject(node: HTMLVideoElement, stream: MediaStream) {
@@ -36,4 +38,11 @@
   {/if}
   <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{name}{isLocal ? ' (You)' : ''}</span>
   <slot />
+  {#if !isLocal && !audioOn}
+    <span class="absolute inset-0 flex items-center justify-center z-30">
+      <span class="bg-black/60 rounded-full p-3 flex items-center justify-center">
+        <IconMicOff size="36" class="text-red-500" />
+      </span>
+    </span>
+  {/if}
 </button> 

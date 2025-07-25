@@ -17,7 +17,7 @@
   let localStream: MediaStream | null = null;
   let audioEnabled = true;
   let videoEnabled = true;
-  let remoteStreams: { peerId: string; stream: MediaStream | null; name: string; videoOn?: boolean }[] = [];
+  let remoteStreams: { peerId: string; stream: MediaStream | null; name: string; videoOn?: boolean; audioOn?: boolean }[] = [];
   let chatInput = '';
   let chatMessages: { sender: string; text: string; time: string }[] = [];
   let chatArea: HTMLDivElement | null = null;
@@ -130,7 +130,7 @@
       onPeerVideo: (peerId, stream, name) => {
         console.log('[MeetingRoom] onPeerVideo', peerId, name, stream);
         if (!remoteStreams.find(r => r.peerId === peerId)) {
-          remoteStreams = [...remoteStreams, { peerId, stream, name, videoOn: true }];
+          remoteStreams = [...remoteStreams, { peerId, stream, name, videoOn: true, audioOn: true }];
         }
       },
       onChatMessage: (msg) => {
@@ -141,7 +141,12 @@
       },
       onPeerLeave: (peerId) => {
         remoteStreams = remoteStreams.filter(r => r.peerId !== peerId);
-      }
+      },
+      onPeerMute: (peerId, muted) => {
+        remoteStreams = remoteStreams.map(r =>
+          r.peerId === peerId ? { ...r, audioOn: !muted } : r
+        );
+      },
     });
     console.log('[MeetingRoom] Calling rtc.join()...');
     rtc.join().then(() => {
@@ -178,6 +183,8 @@
       rtc.toggleAudio();
       if (localStream) {
         audioEnabled = localStream.getAudioTracks().some(track => track.enabled);
+        // Broadcast mute/unmute to all peers
+        rtc.sendMuteSignal(!audioEnabled);
       }
     }
   }
@@ -361,6 +368,7 @@
                 isLocal={false}
                 name={remote.name}
                 videoOn={remote.videoOn !== false}
+                audioOn={remote.audioOn !== false}
                 stream={remote.stream}
                 isSpeaking={speakingPeers.has(remote.peerId)}
                 initials={getInitials(remote.name)}

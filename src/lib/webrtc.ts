@@ -130,6 +130,8 @@ export class MeetingRTC {
         this.peerNames[msg.from] = msg.name;
       } else if (msg.type === 'leave') {
         this.options.onPeerLeave?.(msg.id);
+      } else if (msg.type === 'peer-left') {
+        this.options.onPeerLeave?.(msg.peerId);
       } else if (msg.type === 'offer') {
         console.log('[MeetingRTC] About to handle offer:', msg);
         this.handleOffer(msg);

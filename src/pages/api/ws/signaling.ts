@@ -59,14 +59,14 @@ export const GET: APIRoute = ctx => {
             console.log(`[Signaling] Peer ${id} WebSocket readyState:`, peer.socket.readyState);
           }
           peers.get(target)!.socket.send(JSON.stringify({ ...msg, from: peerId }));
-        } else if (msg.type === 'mute') {
-          // Broadcast mute to all peers
+        } else if (msg.type === 'mute' || msg.type === 'video') {
+          // Broadcast mute/video to all peers
           broadcast(roomId, peerId, { ...msg, from: peerId });
         } else {
           console.warn(`[Signaling] No peer found for target ${target} in room ${roomId}`);
         }
-      } else if (msg.type === 'mute') {
-        // Broadcast mute to all peers
+      } else if (msg.type === 'mute' || msg.type === 'video') {
+        // Broadcast mute/video to all peers
         broadcast(roomId, peerId, { ...msg, from: peerId });
       } else if (msg.type === 'leave') {
         socket.close();

@@ -147,6 +147,11 @@
           r.peerId === peerId ? { ...r, audioOn: !muted } : r
         );
       },
+      onPeerVideoToggle: (peerId, videoOn) => {
+        remoteStreams = remoteStreams.map(r =>
+          r.peerId === peerId ? { ...r, videoOn } : r
+        );
+      },
     });
     console.log('[MeetingRoom] Calling rtc.join()...');
     rtc.join().then(() => {
@@ -194,6 +199,8 @@
       rtc.toggleVideo();
       if (localStream) {
         videoEnabled = localStream.getVideoTracks().some(track => track.enabled);
+        // Broadcast video on/off to all peers
+        rtc.sendVideoSignal(videoEnabled);
       }
     }
   }

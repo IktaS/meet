@@ -8,6 +8,7 @@ interface MeetingRTCOptions {
   onPeerJoin?: (peerId: string, displayName: string) => void;
   onPeerLeave?: (peerId: string) => void;
   onPeerMute?: (peerId: string, muted: boolean) => void;
+  onPeerVideoToggle?: (peerId: string, videoOn: boolean) => void;
 }
 
 export class MeetingRTC {
@@ -86,6 +87,10 @@ export class MeetingRTC {
     this.sendSignal({ type: 'mute', muted });
   }
 
+  public sendVideoSignal(videoOn: boolean) {
+    this.sendSignal({ type: 'video', videoOn });
+  }
+
   // --- Internal methods ---
   private connectSignaling() {
     const wsBase =
@@ -146,6 +151,8 @@ export class MeetingRTC {
         this.handleIce(msg);
       } else if (msg.type === 'mute' && msg.from) {
         this.options.onPeerMute?.(msg.from, msg.muted);
+      } else if (msg.type === 'video' && msg.from) {
+        this.options.onPeerVideoToggle?.(msg.from, msg.videoOn);
       } else if (msg.type === 'chat') {
         this.options.onChatMessage({ sender: msg.sender, text: msg.text, time: msg.time });
       }

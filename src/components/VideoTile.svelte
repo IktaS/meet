@@ -1,5 +1,6 @@
 <script lang="ts">
   import IconMicOff from '~icons/tabler/microphone-off';
+  import IconVideoOff from '~icons/tabler/video-off';
   export let isLocal: boolean;
   export let name: string;
   export let videoOn: boolean;
@@ -39,9 +40,16 @@
   <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{name}{isLocal ? ' (You)' : ''}</span>
   <slot />
   {#if !isLocal && !audioOn}
-    <span class="absolute inset-0 flex items-center justify-center z-30">
-      <span class="bg-black/60 rounded-full p-3 flex items-center justify-center">
-        <IconMicOff size="36" class="text-red-500" />
+    <span class="absolute top-2 right-2 z-30">
+      <span class="bg-black/60 rounded-full p-2 flex items-center justify-center">
+        <IconMicOff size="20" class="text-red-500" />
+      </span>
+    </span>
+  {/if}
+  {#if !isLocal && !videoOn}
+    <span class="absolute top-2 left-2 z-30">
+      <span class="bg-black/60 rounded-full p-2 flex items-center justify-center">
+        <IconVideoOff size="20" class="text-red-500" />
       </span>
     </span>
   {/if}

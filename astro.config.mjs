@@ -9,6 +9,9 @@ export default defineConfig({
   integrations: [tailwind(), svelte()],
   vite: {
     plugins: [Icons({ compiler: 'svelte' })],
+    ssr: {
+      external: ['better-sqlite3'],
+    },
   },
   port: import.meta.env.PORT || 4321,
 });

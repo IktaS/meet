@@ -1,5 +1,7 @@
 import type { APIRoute } from 'astro';
 
+export const prerender = false;
+
 // In-memory signaling state
 const rooms = new Map<string, Map<string, { socket: WebSocket, name: string }>>(); // roomId -> (peerId -> { socket, name })
 let peerCounter = 1;

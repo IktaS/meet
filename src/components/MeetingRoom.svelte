@@ -162,8 +162,10 @@
           localVideo.srcObject = localStream;
           localVideo.play().catch(() => {});
           console.debug('[MeetingRoom] localVideo element set with localStream:', localVideo, localStream);
+        } else if (localStream && !localVideo) {
+          console.warn('[MeetingRoom] localStream is ready but localVideo element is not yet available', localStream);
         } else {
-          console.warn('[MeetingRoom] localVideo or localStream missing after join', localVideo, localStream);
+          console.debug('[MeetingRoom] localVideo or localStream missing after join', localVideo, localStream);
         }
       });
     }).catch(err => {

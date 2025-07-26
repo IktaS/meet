@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
 import type { Meeting } from '../../../types/meeting';
+import { generateTurnCredentials } from '../../../lib/turn';
 
 export const GET: APIRoute = ({ params }) => {
   const id = params.id;
@@ -13,5 +14,21 @@ export const GET: APIRoute = ({ params }) => {
     ...row,
     created_at: new Date(row.created_at).toISOString(),
   };
-  return new Response(JSON.stringify(meeting), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  // TURN credentials
+  const turnSecret = import.meta.env.TURN_SECRET;
+  const turnUrl = import.meta.env.PUBLIC_TURN_URLS;
+  const turnRealm = import.meta.env.TURN_REALM || 'meet';
+  let turn = null;
+  if (typeof turnSecret === 'string' && typeof turnUrl === 'string') {
+    // Use meeting ID as username base for uniqueness
+    const creds = generateTurnCredentials(String(id), turnSecret);
+    turn = {
+      urls: turnUrl.split(','),
+      username: creds.username,
+      credential: creds.credential,
+      ttl: creds.ttl,
+      realm: turnRealm
+    };
+  }
+  return new Response(JSON.stringify({ ...meeting, turn }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }; 

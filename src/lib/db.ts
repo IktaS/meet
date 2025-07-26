@@ -1,10 +1,9 @@
-import Database from 'better-sqlite3';
-import { existsSync } from 'fs';
+import { Database } from 'bun:sqlite';
 
 const DB_PATH = './database.sqlite';
 const db = new Database(DB_PATH);
 
-db.exec(`CREATE TABLE IF NOT EXISTS meetings (
+db.run(`CREATE TABLE IF NOT EXISTS meetings (
   id TEXT PRIMARY KEY,
   name TEXT,
   email TEXT,

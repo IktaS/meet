@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/path/to/your/meet
-ExecStart=/usr/local/bin/bun run start
+ExecStart=/usr/local/bin/bun ./dist/server/entry.mjs
 Restart=always
 RestartSec=5
 EnvironmentFile=/path/to/your/meet/.env

@@ -18,9 +18,14 @@ function broadcast(roomId: string, senderId: string, data: any) {
 }
 
 export const GET: APIRoute = ctx => {
+  console.info('[Signaling] GET request received for WebSocket upgrade');
+  console.info('[Signaling] Request headers:', Object.fromEntries(ctx.request.headers.entries()));
+  console.info('[Signaling] Request URL:', ctx.request.url);
   if (!ctx.locals.isUpgradeRequest) {
+    console.warn('[Signaling] Not an upgrade request, returning 426');
     return new Response('Upgrade required', { status: 426 });
   }
+  console.info('[Signaling] Processing WebSocket upgrade');
   const { response, socket } = ctx.locals.upgradeWebSocket();
   let roomId = '';
   let peerId = '';
@@ -29,9 +34,11 @@ export const GET: APIRoute = ctx => {
     console.log('[Signaling] Received message:', event.data);
     try {
       const msg = JSON.parse(event.data);
+      console.info('[Signaling] Parsed message type:', msg.type);
       if (msg.type === 'join') {
         roomId = msg.roomId;
         peerId = generatePeerId();
+        console.info('[Signaling] Peer joining room:', roomId, 'with ID:', peerId);
         if (!rooms.has(roomId)) rooms.set(roomId, new Map());
         rooms.get(roomId)!.set(peerId, { socket, name: msg.name });
         console.log(`[Signaling] Peer joined: ${peerId} in room ${roomId}`);
@@ -49,7 +56,7 @@ export const GET: APIRoute = ctx => {
           .filter(([id]) => id !== peerId)
           .map(([id, peer]) => ({ peerId: id, name: peer.name }));
         socket.send(JSON.stringify({ type: 'peers', peers: others }));
-      } else if (["offer","answer","ice","chat","peer-name"].includes(msg.type)) {
+      } else if (["offer","answer","ice","chat","peer-name","mute"].includes(msg.type)) {
         const peers = rooms.get(roomId);
         const target = msg.to;
         if (peers && peers.has(target)) {
@@ -65,9 +72,6 @@ export const GET: APIRoute = ctx => {
         } else {
           console.warn(`[Signaling] No peer found for target ${target} in room ${roomId}`);
         }
-      } else if (msg.type === 'mute' || msg.type === 'video') {
-        // Broadcast mute/video to all peers
-        broadcast(roomId, peerId, { ...msg, from: peerId });
       } else if (msg.type === 'leave') {
         socket.close();
       }
@@ -75,7 +79,11 @@ export const GET: APIRoute = ctx => {
       console.error('[Signaling] Error parsing message:', e);
     }
   };
+  socket.onopen = () => {
+    console.info('[Signaling] WebSocket connection opened');
+  };
   socket.onclose = () => {
+    console.info('[Signaling] WebSocket connection closed');
     if (roomId && peerId && rooms.has(roomId)) {
       rooms.get(roomId)!.delete(peerId);
       broadcast(roomId, peerId, { type: 'peer-left', peerId });
@@ -87,6 +95,9 @@ export const GET: APIRoute = ctx => {
         console.log('[Signaling] Room deleted:', roomId);
       }
     }
+  };
+  socket.onerror = (error) => {
+    console.error('[Signaling] WebSocket error:', error);
   };
   return response;
 }; 

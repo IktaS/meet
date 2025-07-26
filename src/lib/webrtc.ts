@@ -96,73 +96,90 @@ export class MeetingRTC {
     const wsBase =
       import.meta.env.PUBLIC_BACKEND_URL ||
       (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-    console.info('[MeetingRTC] Connecting to signaling server...', wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
-    this.ws = new WebSocket(wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
+    const wsUrl = wsBase.replace(/^http/, 'ws') + '/api/ws/signaling';
+    console.info('[MeetingRTC] Connecting to signaling server...', wsUrl);
+    console.info('[MeetingRTC] WebSocket URL:', wsUrl);
+    console.info('[MeetingRTC] Current location:', window.location.href);
+    console.info('[MeetingRTC] PUBLIC_BACKEND_URL:', import.meta.env.PUBLIC_BACKEND_URL);
+    this.ws = new WebSocket(wsUrl);
+    console.info('[MeetingRTC] WebSocket object created, readyState:', this.ws.readyState);
     this.ws.onopen = () => {
       console.info('[MeetingRTC] WebSocket open');
       this.sendSignal({ type: 'join', roomId: this.meetingId, name: this.displayName });
     };
     this.ws.onmessage = async (event) => {
-      console.log('[MeetingRTC] WebSocket message:', event.data);
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'id') {
-        this.myId = msg.id;
-      } else if (msg.type === 'peers') {
-        // Only the new joiner initiates connections to existing peers
-        for (const peer of msg.peers) {
-          const peerId = peer.peerId;
-          const name = peer.name;
-          this.peerNames[peerId] = name;
-          if (peerId !== this.myId) {
-            console.info('[MeetingRTC] Creating offer for', peerId, 'name:', name);
-            try {
-              const pc = this.createPeerConnection(peerId, true);
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              this.sendSignal({ type: 'offer', to: peerId, offer });
-              this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
-              console.info('[MeetingRTC] Offer sent to', peerId);
-            } catch (err) {
-              console.error('[MeetingRTC] Error creating/sending offer for', peerId, err);
+      console.info('[MeetingRTC] WebSocket message received:', event.data);
+      try {
+        const msg = JSON.parse(event.data);
+        console.info('[MeetingRTC] Parsed message:', msg);
+        if (msg.type === 'id') {
+          this.myId = msg.id;
+          console.info('[MeetingRTC] Received my ID:', this.myId);
+        } else if (msg.type === 'peers') {
+          // Only the new joiner initiates connections to existing peers
+          console.info('[MeetingRTC] Received peers list:', msg.peers);
+          for (const peer of msg.peers) {
+            const peerId = peer.peerId;
+            const name = peer.name;
+            this.peerNames[peerId] = name;
+            if (peerId !== this.myId) {
+              console.info('[MeetingRTC] Creating offer for', peerId, 'name:', name);
+              try {
+                const pc = this.createPeerConnection(peerId, true);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                this.sendSignal({ type: 'offer', to: peerId, offer });
+                this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
+                console.info('[MeetingRTC] Offer sent to', peerId);
+              } catch (err) {
+                console.error('[MeetingRTC] Error creating/sending offer for', peerId, err);
+              }
             }
           }
+        } else if (msg.type === 'new-peer') {
+          const peerId = msg.peerId;
+          this.peerNames[peerId] = msg.name;
+          console.info('[MeetingRTC] New peer joined:', peerId, msg.name);
+          if (!this.peers[peerId]) {
+            this.createPeerConnection(peerId, false);
+          }
+          this.options.onPeerJoin?.(peerId, msg.name);
+        } else if (msg.type === 'peer-name') {
+          console.info('[MeetingRTC] Received peer-name from', msg.from, 'name:', msg.name);
+        } else if (msg.type === 'leave') {
+          this.options.onPeerLeave?.(msg.id);
+        } else if (msg.type === 'peer-left') {
+          this.options.onPeerLeave?.(msg.peerId);
+        } else if (msg.type === 'offer') {
+          console.debug('[MeetingRTC] About to handle offer:', msg);
+          this.handleOffer(msg);
+        } else if (msg.type === 'answer') {
+          this.handleAnswer(msg);
+        } else if (msg.type === 'ice') {
+          this.handleIce(msg);
+        } else if (msg.type === 'mute' && msg.from) {
+          this.options.onPeerMute?.(msg.from, msg.muted);
+        } else if (msg.type === 'video' && msg.from) {
+          this.options.onPeerVideoToggle?.(msg.from, msg.videoOn);
+        } else if (msg.type === 'chat') {
+          this.options.onChatMessage({ sender: msg.sender, text: msg.text, time: msg.time });
         }
-      } else if (msg.type === 'new-peer') {
-        const peerId = msg.peerId;
-        this.peerNames[peerId] = msg.name;
-        if (!this.peers[peerId]) {
-          console.log('[MeetingRTC] Creating peer connection for new-peer', peerId);
-          this.createPeerConnection(peerId, false);
-        }
-        this.options.onPeerJoin?.(peerId, msg.name);
-      } else if (msg.type === 'peer-name') {
-        console.log('[MeetingRTC] Received peer-name from', msg.from, 'name:', msg.name);
-        this.peerNames[msg.from] = msg.name;
-      } else if (msg.type === 'leave') {
-        this.options.onPeerLeave?.(msg.id);
-      } else if (msg.type === 'peer-left') {
-        this.options.onPeerLeave?.(msg.peerId);
-      } else if (msg.type === 'offer') {
-        console.debug('[MeetingRTC] About to handle offer:', msg);
-        this.handleOffer(msg);
-      } else if (msg.type === 'answer') {
-        this.handleAnswer(msg);
-      } else if (msg.type === 'ice') {
-        this.handleIce(msg);
-      } else if (msg.type === 'mute' && msg.from) {
-        this.options.onPeerMute?.(msg.from, msg.muted);
-      } else if (msg.type === 'video' && msg.from) {
-        this.options.onPeerVideoToggle?.(msg.from, msg.videoOn);
-      } else if (msg.type === 'chat') {
-        this.options.onChatMessage({ sender: msg.sender, text: msg.text, time: msg.time });
+      } catch (e) {
+        console.error('[MeetingRTC] Error parsing message:', e);
       }
     };
-    this.ws.onclose = () => {
-      console.info('[MeetingRTC] WebSocket closed');
+    this.ws.onclose = (event) => {
+      console.warn('[MeetingRTC] WebSocket closed', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean
+      });
       this.ws = null;
     };
     this.ws.onerror = (err) => {
       console.error('[MeetingRTC] WebSocket error:', err);
+      console.error('[MeetingRTC] WebSocket readyState:', this.ws?.readyState);
+      console.error('[MeetingRTC] WebSocket URL attempted:', wsUrl);
     };
   }
 

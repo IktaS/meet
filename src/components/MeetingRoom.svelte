@@ -128,7 +128,7 @@
       meetingId,
       displayName,
       onPeerVideo: (peerId, stream, name) => {
-        console.log('[MeetingRoom] onPeerVideo', peerId, name, stream);
+        console.info('[MeetingRoom] onPeerVideo', peerId, name, stream);
         if (!remoteStreams.find(r => r.peerId === peerId)) {
           remoteStreams = [...remoteStreams, { peerId, stream, name, videoOn: true, audioOn: true }];
         }
@@ -153,17 +153,17 @@
         );
       },
     });
-    console.log('[MeetingRoom] Calling rtc.join()...');
+    console.info('[MeetingRoom] Calling rtc.join()...');
     rtc.join().then(() => {
       localStream = rtc?.getLocalStream() || null;
-      console.log('[MeetingRoom] rtc.join() resolved, localStream:', localStream);
+      console.info('[MeetingRoom] rtc.join() resolved, localStream:', localStream);
       tick().then(() => {
         if (localVideo && localStream) {
           localVideo.srcObject = localStream;
           localVideo.play().catch(() => {});
-          console.log('[MeetingRoom] localVideo element set with localStream:', localVideo, localStream);
+          console.debug('[MeetingRoom] localVideo element set with localStream:', localVideo, localStream);
         } else {
-          console.log('[MeetingRoom] localVideo or localStream missing after join', localVideo, localStream);
+          console.warn('[MeetingRoom] localVideo or localStream missing after join', localVideo, localStream);
         }
       });
     }).catch(err => {

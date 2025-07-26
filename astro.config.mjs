@@ -10,4 +10,5 @@ export default defineConfig({
   vite: {
     plugins: [Icons({ compiler: 'svelte' })],
   },
+  port: import.meta.env.PORT || 4321,
 });

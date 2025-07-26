@@ -96,10 +96,10 @@ export class MeetingRTC {
     const wsBase =
       import.meta.env.PUBLIC_BACKEND_URL ||
       (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-    console.log('[MeetingRTC] Connecting to signaling server...', wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
+    console.info('[MeetingRTC] Connecting to signaling server...', wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
     this.ws = new WebSocket(wsBase.replace(/^http/, 'ws') + '/api/ws/signaling');
     this.ws.onopen = () => {
-      console.log('[MeetingRTC] WebSocket open');
+      console.info('[MeetingRTC] WebSocket open');
       this.sendSignal({ type: 'join', roomId: this.meetingId, name: this.displayName });
     };
     this.ws.onmessage = async (event) => {
@@ -114,14 +114,14 @@ export class MeetingRTC {
           const name = peer.name;
           this.peerNames[peerId] = name;
           if (peerId !== this.myId) {
-            console.log('[MeetingRTC] Creating offer for', peerId, 'name:', name);
+            console.info('[MeetingRTC] Creating offer for', peerId, 'name:', name);
             try {
               const pc = this.createPeerConnection(peerId, true);
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
               this.sendSignal({ type: 'offer', to: peerId, offer });
               this.sendSignal({ type: 'peer-name', to: peerId, name: this.displayName });
-              console.log('[MeetingRTC] Offer sent to', peerId);
+              console.info('[MeetingRTC] Offer sent to', peerId);
             } catch (err) {
               console.error('[MeetingRTC] Error creating/sending offer for', peerId, err);
             }
@@ -143,7 +143,7 @@ export class MeetingRTC {
       } else if (msg.type === 'peer-left') {
         this.options.onPeerLeave?.(msg.peerId);
       } else if (msg.type === 'offer') {
-        console.log('[MeetingRTC] About to handle offer:', msg);
+        console.debug('[MeetingRTC] About to handle offer:', msg);
         this.handleOffer(msg);
       } else if (msg.type === 'answer') {
         this.handleAnswer(msg);
@@ -158,7 +158,7 @@ export class MeetingRTC {
       }
     };
     this.ws.onclose = () => {
-      console.log('[MeetingRTC] WebSocket closed');
+      console.info('[MeetingRTC] WebSocket closed');
       this.ws = null;
     };
     this.ws.onerror = (err) => {
@@ -173,7 +173,7 @@ export class MeetingRTC {
   }
 
   private createPeerConnection(peerId: string, isInitiator: boolean) {
-    console.log('[MeetingRTC] createPeerConnection', peerId, isInitiator);
+    console.debug('[MeetingRTC] createPeerConnection', peerId, isInitiator);
     const TURN_URLS = import.meta.env.PUBLIC_TURN_URLS?.split(',') || [];
     const TURN_USERNAME = import.meta.env.PUBLIC_TURN_USERNAME;
     const TURN_CREDENTIAL = import.meta.env.PUBLIC_TURN_CREDENTIAL;

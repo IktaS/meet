@@ -13,7 +13,8 @@ export interface ScheduleMeetingResponse {
   id: string;
 }
 
-const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL;
+const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
 export async function scheduleMeeting(data: ScheduleMeetingRequest): Promise<ScheduleMeetingResponse> {
   const res = await fetch(`${BACKEND_URL}/api/schedule`, {

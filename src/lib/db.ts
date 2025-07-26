@@ -15,4 +15,4 @@ db.exec(`CREATE TABLE IF NOT EXISTS meetings (
   created_at TEXT
 );`);
 
-export default db; 
+export default db;

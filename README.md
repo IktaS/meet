@@ -69,5 +69,62 @@ A modern, full-stack video meeting application built with Astro, Svelte, Bun, an
 - For best reliability, deploy behind a reverse proxy (e.g., nginx) and ensure coturn is reachable from clients.
 - SQLite is used for persistence; for high scale, consider a managed DB.
 
+## Production Deployment
+
+1. **Prepare your server:**
+   - Install [Bun](https://bun.sh/), SQLite, and coturn.
+   - Ensure ports 80/443 (HTTP/HTTPS) and your TURN ports are open.
+
+2. **Clone and set up the project:**
+   ```sh
+   git clone <repo-url>
+   cd meet
+   bun install
+   cp .env.example .env # or create your .env as above
+   # Edit .env with your production values
+   ```
+
+3. **Build the app:**
+   ```sh
+   bun run build
+   ```
+
+4. **Run the app:**
+   ```sh
+   bun run start
+   # Or use a process manager like pm2 or systemd for reliability
+   ```
+
+5. **Set up a reverse proxy (recommended):**
+   - Use nginx or Caddy to proxy HTTPS traffic to your Bun app (default port 3000 or as set in .env).
+   - Example nginx config:
+     ```nginx
+     server {
+         listen 80;
+         server_name yourdomain.com;
+         location / {
+             proxy_pass http://localhost:3000;
+             proxy_set_header Host $host;
+             proxy_set_header X-Real-IP $remote_addr;
+             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+             proxy_set_header X-Forwarded-Proto $scheme;
+         }
+     }
+     ```
+   - Set up SSL (Let's Encrypt) for HTTPS.
+
+6. **Coturn:**
+   - Ensure coturn is running and accessible on the public TURN port(s).
+   - Use the same TURN_SECRET as in your .env.
+   - Open UDP/TCP ports as needed (default 3478, 5349).
+
+7. **Database:**
+   - SQLite is file-based and included by default. For production, ensure regular backups.
+   - For high scale, consider migrating to a managed SQL database.
+
+8. **Monitoring & Logs:**
+   - Use a process manager (pm2, systemd) to keep the app running.
+   - Monitor logs for errors and warnings.
+
 ## License
 MIT 

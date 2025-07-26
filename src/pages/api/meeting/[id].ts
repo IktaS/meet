@@ -3,6 +3,8 @@ import db from '../../../lib/db';
 import type { Meeting } from '../../../types/meeting';
 import { generateTurnCredentials } from '../../../lib/turn';
 
+export const prerender = false;
+
 export const GET: APIRoute = ({ params }) => {
   const id = params.id;
   const row = db.prepare('SELECT * FROM meetings WHERE id = ?').get(id);

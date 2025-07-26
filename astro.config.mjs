@@ -12,6 +12,11 @@ export default defineConfig({
     ssr: {
       external: ['better-sqlite3'],
     },
+    build: {
+      rollupOptions: {
+        external: ['better-sqlite3'],
+      },
+    },
   },
   port: import.meta.env.PORT || 4321,
 });

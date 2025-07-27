@@ -20,7 +20,7 @@
   import IconScreenShareOff from '~icons/tabler/screen-share-off';
 </script>
 
-<div class="fixed md:absolute left-0 right-0 bottom-0 md:left-1/2 md:bottom-6 md:-translate-x-1/2 z-40 flex flex-row md:flex-row gap-2 md:gap-4 bg-white/95 md:bg-white/90 rounded-none md:rounded-full shadow-t md:shadow-lg px-2 md:px-6 py-2 md:py-3 items-center justify-center w-full md:w-auto">
+<div class="fixed md:absolute left-0 right-0 bottom-0 md:left-1/2 md:bottom-6 md:-translate-x-1/2 z-40 flex flex-row md:flex-row gap-1 md:gap-4 bg-white/95 md:bg-white/90 rounded-none md:rounded-full shadow-t md:shadow-lg px-1 md:px-6 py-2 md:py-3 items-center justify-center w-full md:w-auto">
   <button class="btn btn-secondary flex items-center gap-2" type="button" on:click={toggleAudio} aria-label={audioEnabled ? 'Mute' : 'Unmute'}>
     {#if audioEnabled}
       <IconMic size="22" />

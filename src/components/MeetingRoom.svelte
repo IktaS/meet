@@ -316,20 +316,24 @@
   <div class="fixed inset-0 min-h-screen bg-gradient-to-br from-indigo-50 to-white flex flex-col">
     <!-- Mobile Header -->
     <header class="flex md:hidden items-center justify-between px-2 py-2 bg-white/90 shadow-sm sticky top-0 z-30">
-      <span class="font-mono text-xs text-gray-500 bg-gray-100 rounded px-2 py-1">ID: {meetingId.slice(0, 4)}...</span>
-      <button class="btn btn-secondary flex items-center gap-1 px-2 py-1 text-xs" on:click={copyMeetingLink} aria-label="Copy meeting link">
-        <IconCopy size="18" />
-        {#if copied}
-          <span>Copied!</span>
-        {:else}
-          <span>Copy</span>
-        {/if}
-      </button>
-      <button class="btn btn-secondary flex items-center gap-2 md:hidden" type="button" on:click={toggleChat} aria-label={showChat ? 'Hide Chat' : 'Show Chat'}>
+      <div class="flex items-center gap-1">
+        <span class="font-mono text-xs text-gray-500 bg-gray-100 rounded px-1 py-1">ID: {meetingId.slice(0, 4)}...</span>
+        <button class="ml-1 btn btn-secondary flex items-center gap-1 px-1 py-1 text-xs" on:click={copyMeetingLink} aria-label="Copy meeting link">
+          <IconCopy size="16" />
+          {#if copied}
+            <span class="hidden sm:inline">Copied!</span>
+            <span class="sm:hidden">✓</span>
+          {:else}
+            <span class="hidden sm:inline">Copy</span>
+            <span class="sm:hidden">Copy</span>
+          {/if}
+        </button>
+      </div>
+      <button class="btn btn-secondary flex items-center gap-1" type="button" on:click={toggleChat} aria-label={showChat ? 'Hide Chat' : 'Show Chat'}>
         {#if showChat}
-          <IconMessageOff size="22" />
+          <IconMessageOff size="20" />
         {:else}
-          <IconMessage size="22" />
+          <IconMessage size="20" />
         {/if}
       </button>
     </header>
@@ -359,8 +363,8 @@
     <div class="flex-1 flex flex-col md:flex-row gap-0 md:gap-6 max-w-7xl w-full mx-auto px-0 md:px-8 py-2 md:py-4 h-full">
       <!-- Video grid -->
       <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
-        <div class="flex-1 grid gap-2 md:gap-4 w-full h-full overflow-x-auto md:overflow-visible pb-28 md:pb-0"
-          style="grid-template-columns: repeat(auto-fit, minmax(min(280px, calc(100vw - 2rem)), 1fr)); grid-auto-rows: minmax(0, 1fr); max-height: calc(100vh - 200px);">
+        <div class="flex-1 grid gap-1 sm:gap-2 md:gap-4 w-full h-full overflow-x-auto md:overflow-visible pb-32 md:pb-0 video-grid-mobile sm:video-grid-tablet md:video-grid-desktop"
+          style="max-height: calc(100vh - 240px);">
           {#if focusedTile === null}
             <VideoTile
               isLocal={true}
@@ -396,7 +400,7 @@
                 isSpeaking={localSpeaking}
                 initials={getInitials(displayName)}
               >
-                <button class="absolute top-2 right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="22" /></button>
+                <button class="absolute top-1 md:top-2 right-1 md:right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="18" class="md:w-[22px] md:h-[22px]" /></button>
               </VideoTile>
             {:else}
               {#each remoteStreams as remote}
@@ -409,7 +413,7 @@
                     isSpeaking={speakingPeers.has(remote.peerId)}
                     initials={getInitials(remote.name)}
                   >
-                    <button class="absolute top-2 right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="22" /></button>
+                    <button class="absolute top-1 md:top-2 right-1 md:right-2 z-10 bg-white/80 rounded-full p-1 shadow hover:bg-white" on:click={() => focusedTile = null} aria-label="Exit focus"><IconX size="18" class="md:w-[22px] md:h-[22px]" /></button>
                   </VideoTile>
                 {/if}
               {/each}
@@ -431,7 +435,7 @@
       </div>
       <!-- Chat sidebar (conditionally rendered) -->
       {#if showChat}
-        <aside class="fixed md:static bottom-0 left-0 right-0 md:shrink-0 w-full md:w-[350px] max-w-full flex flex-col bg-white/95 md:bg-white/80 rounded-none md:rounded-2xl shadow-t md:shadow-lg ml-0 md:ml-6 mt-0 md:mt-0 z-50 h-[40vh] md:h-auto" style="max-height:60vh;">
+        <aside class="fixed md:static bottom-0 left-0 right-0 md:shrink-0 w-full md:w-[350px] max-w-full flex flex-col bg-white/95 md:bg-white/80 rounded-none md:rounded-2xl shadow-t md:shadow-lg ml-0 md:ml-6 mt-0 md:mt-0 z-50 h-[35vh] md:h-auto" style="max-height:50vh;">
           <div class="flex-1 rounded-none md:rounded-2xl p-2 md:p-4 mb-2 overflow-y-auto min-h-[120px] md:min-h-[200px]" bind:this={chatArea}>
             {#if chatMessages.length === 0}
               <div class="text-gray-400 text-center">Chat will appear here</div>
@@ -449,9 +453,9 @@
               </ul>
             {/if}
           </div>
-          <form class="flex gap-2 p-2 md:p-4 pt-0" on:submit={sendMessage} autocomplete="off">
-            <input class="input input-bordered flex-1" placeholder="Type a message..." bind:value={chatInput} />
-            <button class="btn btn-primary" type="submit">Send</button>
+          <form class="flex gap-1 md:gap-2 p-2 md:p-4 pt-0" on:submit={sendMessage} autocomplete="off">
+            <input class="input input-bordered flex-1 text-sm md:text-base" placeholder="Type a message..." bind:value={chatInput} />
+            <button class="btn btn-primary text-sm md:text-base px-2 md:px-4" type="submit">Send</button>
           </form>
         </aside>
       {/if}

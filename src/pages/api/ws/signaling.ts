@@ -95,7 +95,7 @@ export const GET: APIRoute = ctx => {
             .filter(([id]) => id !== peerId)
             .map(([id, peer]) => ({ peerId: id, name: peer.name }));
           socket.send(JSON.stringify({ type: 'peers', peers: others }));
-        } else if (["offer","answer","ice","chat","peer-name","mute","video"].includes(msg.type)) {
+        } else if (["offer","answer","ice","peer-name"].includes(msg.type)) {
           const peers = rooms.get(roomId);
           const target = msg.to;
           if (peers && peers.has(target)) {
@@ -105,12 +105,21 @@ export const GET: APIRoute = ctx => {
               console.log(`[Signaling] Peer ${id} WebSocket readyState:`, peer.socket.readyState);
             }
             peers.get(target)!.socket.send(JSON.stringify({ ...msg, from: peerId }));
-          } else if (msg.type === 'mute' || msg.type === 'video') {
-            // Broadcast mute/video to all peers
-            broadcast(roomId, peerId, { ...msg, from: peerId });
           } else {
             console.warn(`[Signaling] No peer found for target ${target} in room ${roomId}`);
           }
+        } else if (msg.type === 'chat') {
+          // Broadcast chat messages to all peers in the room
+          console.log(`[Signaling] Broadcasting chat message from ${peerId}:`, msg.text);
+          broadcast(roomId, peerId, { 
+            type: 'chat', 
+            sender: msg.sender, 
+            text: msg.text, 
+            time: msg.time 
+          });
+        } else if (msg.type === 'mute' || msg.type === 'video') {
+          // Broadcast mute/video to all peers
+          broadcast(roomId, peerId, { ...msg, from: peerId });
         } else if (msg.type === 'leave') {
           socket.close();
         }

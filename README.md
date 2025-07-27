@@ -4,7 +4,7 @@ A modern, full-stack video meeting application built with Astro, Svelte, Bun, an
 
 ## Features
 - Real-time video and audio meetings (WebRTC)
-- Chat during meetings
+- Chat during meetings (WebSocket-based signaling)
 - Meeting scheduling and persistent storage (SQLite)
 - TURN server support for NAT traversal (dynamic credentials)
 - Discord notifications when meetings are created

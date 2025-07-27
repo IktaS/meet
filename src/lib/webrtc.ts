@@ -24,7 +24,7 @@ export class MeetingRTC {
   private displayName: string;
   private ws: WebSocket | null = null;
   private peers: Record<string, RTCPeerConnection> = {};
-  private dataChannels: Record<string, RTCDataChannel> = {};
+  // Data channels are no longer used for chat functionality
   private peerNames: Record<string, string> = {};
   private myId: string = '';
   private localStream: MediaStream | null = null;
@@ -70,11 +70,15 @@ export class MeetingRTC {
       text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    Object.values(this.dataChannels).forEach(dc => {
-      if (dc.readyState === 'open') {
-        dc.send(JSON.stringify(msg));
-      }
+    console.log('[MeetingRTC] Sending chat message:', msg);
+    // Send chat message via WebSocket signaling to all peers in the room
+    this.sendSignal({ 
+      type: 'chat', 
+      sender: this.displayName, 
+      text, 
+      time: msg.time 
     });
+    // Also show the message locally
     this.options.onChatMessage(msg);
   }
 
@@ -101,7 +105,6 @@ export class MeetingRTC {
     }
     Object.values(this.peers).forEach(pc => pc.close());
     this.peers = {};
-    this.dataChannels = {};
     this.peerNames = {};
     this.myId = '';
     if (this.localStream) {
@@ -189,6 +192,7 @@ export class MeetingRTC {
         } else if (msg.type === 'video' && msg.from) {
           this.options.onPeerVideoToggle?.(msg.from, msg.videoOn);
         } else if (msg.type === 'chat') {
+          console.log('[MeetingRTC] Received chat message:', msg);
           this.options.onChatMessage({ sender: msg.sender, text: msg.text, time: msg.time });
         }
       } catch (e) {
@@ -260,9 +264,10 @@ export class MeetingRTC {
         });
       }
     };
-    pc.ondatachannel = (event) => {
-      this.setupDataChannel(peerId, event.channel);
-    };
+    // Data channels are no longer used for chat functionality
+    // pc.ondatachannel = (event) => {
+    //   this.setupDataChannel(peerId, event.channel);
+    // };
     pc.ontrack = (event) => {
       let stream = event.streams[0];
       console.log('[MeetingRTC] ontrack for peer', peerId, stream);
@@ -275,21 +280,13 @@ export class MeetingRTC {
         pc.addTrack(track, this.localStream!);
       });
     }
-    if (isInitiator) {
-      const dc = pc.createDataChannel('chat');
-      this.setupDataChannel(peerId, dc);
-    }
+    // Note: Chat is now handled via WebSocket signaling instead of data channels
+    // Data channels are no longer needed for chat functionality
     this.peers[peerId] = pc;
     return pc;
   }
 
-  private setupDataChannel(peerId: string, dc: RTCDataChannel) {
-    this.dataChannels[peerId] = dc;
-    dc.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      this.options.onChatMessage({ sender: msg.sender, text: msg.text, time: msg.time });
-    };
-  }
+  // Data channels are no longer used for chat - chat is handled via WebSocket signaling
 
   private async handleOffer(msg: any) {
     console.log('[MeetingRTC] handleOffer from', msg.from, msg.offer);

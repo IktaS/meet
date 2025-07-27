@@ -134,6 +134,7 @@
         }
       },
       onChatMessage: (msg) => {
+        console.log('[MeetingRoom] Received chat message:', msg);
         chatMessages = [...chatMessages, msg];
         tick().then(() => {
           if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;

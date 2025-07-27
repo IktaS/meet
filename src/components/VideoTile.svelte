@@ -25,7 +25,7 @@
   }
 </script>
 
-<button type="button" class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden transition-all duration-300" on:click={onClick}>
+<button type="button" class="relative aspect-video min-w-0 min-h-0 bg-black rounded-2xl shadow-lg flex items-center justify-center overflow-hidden transition-all duration-300 w-full h-full" on:click={onClick}>
   {#if isSpeaking}
     <div class="absolute inset-0 z-10 pointer-events-none rounded-2xl border-4 border-indigo-400 animate-glow-outline"></div>
   {/if}
@@ -33,23 +33,23 @@
     <video bind:this={videoEl} autoplay playsinline muted={isLocal} class="w-full h-full object-cover rounded-2xl transition-all duration-300" use:setSrcObject={stream}></video>
   {:else}
     <div class="flex flex-col items-center justify-center w-full h-full">
-      <div class="w-20 h-20 rounded-full bg-indigo-400 flex items-center justify-center text-white text-3xl font-bold mb-2">{initials}</div>
-      <span class="text-white text-sm">Camera Off</span>
+      <div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-indigo-400 flex items-center justify-center text-white text-2xl md:text-3xl font-bold mb-2">{initials}</div>
+      <span class="text-white text-xs md:text-sm">Camera Off</span>
     </div>
   {/if}
-  <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-3 py-1 rounded-full text-white shadow">{name}{isLocal ? ' (You)' : ''}</span>
+  <span class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-xs px-2 md:px-3 py-1 rounded-full text-white shadow max-w-[90%] truncate">{name}{isLocal ? ' (You)' : ''}</span>
   <slot />
   {#if !isLocal && !audioOn}
     <span class="absolute top-2 right-2 z-30">
-      <span class="bg-black/60 rounded-full p-2 flex items-center justify-center">
-        <IconMicOff size="20" class="text-red-500" />
+      <span class="bg-black/60 rounded-full p-1 md:p-2 flex items-center justify-center">
+        <IconMicOff size="16" class="md:w-5 md:h-5 text-red-500" />
       </span>
     </span>
   {/if}
   {#if !isLocal && !videoOn}
     <span class="absolute top-2 left-2 z-30">
-      <span class="bg-black/60 rounded-full p-2 flex items-center justify-center">
-        <IconVideoOff size="20" class="text-red-500" />
+      <span class="bg-black/60 rounded-full p-1 md:p-2 flex items-center justify-center">
+        <IconVideoOff size="16" class="md:w-5 md:h-5 text-red-500" />
       </span>
     </span>
   {/if}

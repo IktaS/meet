@@ -359,7 +359,7 @@
       <!-- Video grid -->
       <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
         <div class="flex-1 grid gap-2 md:gap-4 w-full h-full overflow-x-auto md:overflow-visible pb-28 md:pb-0"
-          style="grid-template-columns: repeat(auto-fit, minmax(min(320px,100%), 1fr)); grid-auto-rows: 0;">
+          style="grid-template-columns: repeat(auto-fit, minmax(min(280px, calc(100vw - 2rem)), 1fr)); grid-auto-rows: minmax(0, 1fr); max-height: calc(100vh - 200px);">
           {#if focusedTile === null}
             <VideoTile
               isLocal={true}

@@ -11,6 +11,14 @@ interface MeetingRTCOptions {
   onPeerVideoToggle?: (peerId: string, videoOn: boolean) => void;
 }
 
+interface TurnCredentials {
+  urls: string[];
+  username: string;
+  credential: string;
+  ttl: number;
+  realm: string;
+}
+
 export class MeetingRTC {
   private meetingId: string;
   private displayName: string;
@@ -21,6 +29,7 @@ export class MeetingRTC {
   private myId: string = '';
   private localStream: MediaStream | null = null;
   private options: MeetingRTCOptions;
+  private turnCredentials: TurnCredentials | null = null;
 
   constructor(options: MeetingRTCOptions) {
     this.meetingId = options.meetingId;
@@ -29,8 +38,26 @@ export class MeetingRTC {
   }
 
   async join() {
+    // Fetch TURN credentials first
+    await this.fetchTurnCredentials();
+    
     this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     this.connectSignaling();
+  }
+
+  private async fetchTurnCredentials() {
+    try {
+      const response = await fetch(`/api/meeting/${this.meetingId}`);
+      if (response.ok) {
+        const data = await response.json();
+        this.turnCredentials = data.turn;
+        console.info('[MeetingRTC] TURN credentials fetched:', this.turnCredentials);
+      } else {
+        console.warn('[MeetingRTC] Failed to fetch TURN credentials, using fallback');
+      }
+    } catch (error) {
+      console.warn('[MeetingRTC] Error fetching TURN credentials:', error);
+    }
   }
 
   getLocalStream() {
@@ -191,19 +218,38 @@ export class MeetingRTC {
 
   private createPeerConnection(peerId: string, isInitiator: boolean) {
     console.debug('[MeetingRTC] createPeerConnection', peerId, isInitiator);
-    const TURN_URLS = import.meta.env.PUBLIC_TURN_URLS?.split(',') || [];
-    const TURN_USERNAME = import.meta.env.PUBLIC_TURN_USERNAME;
-    const TURN_CREDENTIAL = import.meta.env.PUBLIC_TURN_CREDENTIAL;
+    
+    // Build ICE servers configuration
     const iceServers = [
       { urls: 'stun:stun.l.google.com:19302' } as RTCIceServer,
     ];
-    if (TURN_URLS.length > 0 && TURN_USERNAME && TURN_CREDENTIAL) {
+    
+    // Use TURN credentials from API if available, otherwise fall back to environment variables
+    if (this.turnCredentials) {
+      console.info('[MeetingRTC] Using TURN credentials from API:', this.turnCredentials);
       iceServers.push({
-        urls: TURN_URLS as string[],
-        username: TURN_USERNAME,
-        credential: TURN_CREDENTIAL
+        urls: this.turnCredentials.urls,
+        username: this.turnCredentials.username,
+        credential: this.turnCredentials.credential
       } as RTCIceServer);
+    } else {
+      // Fallback to environment variables
+      const TURN_URLS = import.meta.env.PUBLIC_TURN_URLS?.split(',') || [];
+      const TURN_USERNAME = import.meta.env.PUBLIC_TURN_USERNAME;
+      const TURN_CREDENTIAL = import.meta.env.PUBLIC_TURN_CREDENTIAL;
+      
+      if (TURN_URLS.length > 0 && TURN_USERNAME && TURN_CREDENTIAL) {
+        console.info('[MeetingRTC] Using TURN credentials from environment variables');
+        iceServers.push({
+          urls: TURN_URLS as string[],
+          username: TURN_USERNAME,
+          credential: TURN_CREDENTIAL
+        } as RTCIceServer);
+      }
     }
+    
+    console.info('[MeetingRTC] ICE servers configuration:', iceServers);
+    
     const pc = new RTCPeerConnection({ iceServers });
     pc.onicecandidate = (event) => {
       if (event.candidate) {

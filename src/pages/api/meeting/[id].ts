@@ -23,7 +23,8 @@ export const GET: APIRoute = ({ params }) => {
   let turn = null;
   if (typeof turnSecret === 'string' && typeof turnUrl === 'string') {
     // Use meeting ID as username base for uniqueness
-    const creds = generateTurnCredentials(String(id), turnSecret);
+    // Set TTL to 1 day (86400 seconds)
+    const creds = generateTurnCredentials(String(id), turnSecret, 86400);
     turn = {
       urls: turnUrl.split(','),
       username: creds.username,
